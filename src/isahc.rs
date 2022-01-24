@@ -1,7 +1,10 @@
 use futures_lite::{io::Cursor, AsyncRead};
-use isahc::{config::RedirectPolicy, prelude::*, HttpClient, Request};
+use isahc::{config::{RedirectPolicy, CaCertificate}, prelude::*, HttpClient, Request};
 use once_cell::sync::Lazy;
 use openidconnect::{HttpRequest, HttpResponse};
+
+use std::env;
+use std::path::PathBuf;
 
 ///
 /// Error type returned by failed Isahc HTTP requests.
@@ -26,8 +29,15 @@ pub(crate) enum Error {
 // bare `http_client` function to the oauth2-rs crate and we cannot close
 // over `self` when doing that.
 static HTTP_CLIENT: Lazy<HttpClient> = Lazy::new(|| {
-    HttpClient::builder()
-        .redirect_policy(RedirectPolicy::None)
+    let mut builder = HttpClient::builder()
+        .redirect_policy(RedirectPolicy::None);
+        
+    if let Some(var) = env::var("TIDE_OIDC_SSL_CERT").ok() {
+        let ca_cert = CaCertificate::file(var);
+        builder = builder.ssl_ca_certificate(ca_cert);
+    }
+
+    builder
         .build()
         .expect("Unable to initialize Isahc client.")
 });
