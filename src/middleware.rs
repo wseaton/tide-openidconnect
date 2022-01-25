@@ -3,10 +3,17 @@ use std::sync::Arc;
 use crate::isahc::http_client;
 use crate::redirect_strategy::{HttpRedirect, RedirectStrategy};
 use crate::request_ext::OpenIdConnectRequestExtData;
+use openidconnect::core::{
+    CoreAuthDisplay, CoreClaimName, CoreClaimType, CoreClientAuthMethod, CoreGrantType,
+    CoreJsonWebKey, CoreJsonWebKeyType, CoreJsonWebKeyUse, CoreJweContentEncryptionAlgorithm,
+    CoreJweKeyManagementAlgorithm, CoreJwsSigningAlgorithm, CoreResponseMode,
+    CoreSubjectIdentifierType,
+};
+use openidconnect::EmptyAdditionalProviderMetadata;
 use openidconnect::{
     core::{CoreClient, CoreProviderMetadata, CoreResponseType},
     AccessToken, AuthenticationFlow, AuthorizationCode, ClientId, ClientSecret, CsrfToken,
-    IssuerUrl, Nonce, OAuth2TokenResponse, RedirectUrl, Scope, SubjectIdentifier,
+    IssuerUrl, Nonce, OAuth2TokenResponse, ProviderMetadata, RedirectUrl, Scope, SubjectIdentifier,
 };
 use serde::{Deserialize, Serialize};
 use tide::{http::Method, Middleware, Next, Redirect, Request, StatusCode};
@@ -131,12 +138,39 @@ impl OpenIdConnectMiddleware {
     ///     .with_logout_landing_path("/loggedout");
     /// # })
     /// ```
-    pub async fn new(config: &Config) -> Self {
+    pub async fn new(
+        config: &Config,
+        provider_metadata: Option<
+            ProviderMetadata<
+                EmptyAdditionalProviderMetadata,
+                CoreAuthDisplay,
+                CoreClientAuthMethod,
+                CoreClaimName,
+                CoreClaimType,
+                CoreGrantType,
+                CoreJweContentEncryptionAlgorithm,
+                CoreJweKeyManagementAlgorithm,
+                CoreJwsSigningAlgorithm,
+                CoreJsonWebKeyType,
+                CoreJsonWebKeyUse,
+                CoreJsonWebKey,
+                CoreResponseMode,
+                CoreResponseType,
+                CoreSubjectIdentifierType,
+            >,
+        >,
+    ) -> Self {
         // Get the OpenID Connect provider metadata.
-        let provider_metadata =
-            CoreProviderMetadata::discover_async(config.issuer_url.clone(), http_client)
-                .await
-                .expect("Unable to load OpenID Connect provider metadata.");
+
+        let provider_metadata = {
+            if let Some(provider_metadata) = provider_metadata {
+                provider_metadata
+            } else {
+                CoreProviderMetadata::discover_async(config.issuer_url.clone(), http_client)
+                    .await
+                    .expect("Unable to load OpenID Connect provider metadata.")
+            }
+        };
 
         // Create the OpenID Connect client.
         let client = CoreClient::from_provider_metadata(
