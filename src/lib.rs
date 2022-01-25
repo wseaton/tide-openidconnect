@@ -10,7 +10,6 @@
     clippy::unwrap_in_result,
     clippy::unwrap_used
 )]
-#![feature(associated_type_bounds)]
 
 mod isahc;
 mod middleware;
